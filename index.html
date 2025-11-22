@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ALFACOMP — Мониторы</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #0e1621; color: #fff; margin:0; padding:20px; }
+    h1, h2 { text-align:center; }
+    .btn { background:#0088cc; color:white; padding:15px; margin:10px; border-radius:12px; text-align:center; font-size:18px; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-top:20px; }
+    .model { background:#182c47; padding:15px; border-radius:12px; text-align:center; }
+    .price { font-size:20px; font-weight:bold; margin:10px 0; }
+    .old { text-decoration:line-through; color:#888; }
+    .new { color:#00ff88; }
+    .photo { width:100%; max-width:400px; border-radius:12px; margin:15px auto; display:block; }
+    .back { background:#444; margin-top:30px; }
+  </style>
+</head>
+<body>
+  <h1>ALFACOMP — Мониторы</h1>
+
+  <div id="lang">
+    <div class="btn" onclick="setLang('ru')">Русский</div>
+    <div class="btn" onclick="setLang('uz')">O'zbek tili</div>
+  </div>
+
+  <div id="companies" style="display:none">
+    <h2 id="title-company"></h2>
+    <div class="grid" id="company-list"></div>
+    <div class="btn back" onclick="showLang()">Назад</div>
+  </div>
+
+  <div id="models" style="display:none">
+    <h2 id="title-model"></h2>
+    <div id="model-list"></div>
+    <div class="btn back" onclick="showCompanies()">Назад</div>
+  </div>
+
+  <div id="detail" style="display:none">
+    <img id="photo" class="photo" src="" />
+    <h2 id="model-name"></h2>
+    <div id="price-text" class="price"></div>
+    <div class="grid">
+      <div class="btn" onclick="buy('tg')">Telegram</div>
+      <div class="btn" onclick="buy('phone')">+998883203333</div>
+    </div>
+    <div class="btn back" onclick="showModels()">Назад</div>
+  </div>
+
+<script>
+const tg = window.Telegram.WebApp;
+tg.ready();
+
+let lang = 'ru';
+let hasPromo = false;
+const promoCode = "Alfacomppromo777";
+
+const texts = {
+  ru: { chooseLang:"Выберите язык", chooseCompany:"Выберите бренд", chooseModel:"Выберите модель", buy:"Купить в ", discount:"Цена по промокоду -10%:" },
+  uz: { chooseLang:"Tilni tanlang", chooseCompany:"Brendni tanlang", chooseModel:"Modelni tanlang", buy:"Sotib olish: ", discount:"Promokod bo'yicha -10%:" }
+};
+
+const companies = ['Asus','Samsung','Benq','Dell','Redmi/акция','Lenovo/акция','Msi/акция'];
+const promoBrands = ['Redmi/акция','Lenovo/акция','Msi/акция'];
+
+// ← ВСТАВЬ СЮДА ВСЕ МОДЕЛИ ИЗ ПРЕДЫДУЩЕГО СООБЩЕНИЯ (я сократил для примера)
+const MODELS = {
+  'Asus': [
+    {name:'◇☆VG249QM5A FHD 240HZ IPS FLAT 170$', photo:'https://i.ebayimg.com/images/g/JoMAAeSwCnpoy-E6/s-l1200.png'},
+    {name:'◇☆PA278QV 2K 75HZ IPS FLAT 380$', photo:'https://dlcdnimgs.asus.com/websites/global/products/gvxnvsvumc3y1lyy/images/pic_caretechnology_01.png'},
+    // ... остальные модели Asus
+  ],
+  'Samsung': [
+    {name:'◇☆LS24C360EAMXUE FHD 75HZ CURVED 115$', photo:'https://images.samsung.com/is/image/samsung/p6pim/ae/ls24c360eamxue/gallery/ae-essential-s3-s36c-27inch-round-stand-ls24c360eamxue-536796096?$Q90_1248_936_F_PNG$'},
+    // ... все Samsung
+  ],
+  'Redmi/акция': [
+    {name:'Redmi x27G FULL HD 180 HZ -110$', photo:'https://store.moscow/upload/cssinliner_webp/iblock/412/vqh2jvftgmwyrss2g8qrps6gy825crm6.webp'},
+    {name:'REDMI G24 FULL HD 240hz -110$', photo:'https://m.media-amazon.com/images/I/61IK7MyWyYL._AC_UF894,1000_QL80_.jpg'}
+  ],
+  'Lenovo/акция': [
+    {name:'LENOVO LEGION R24E FULL HD 180 HZ -122$', photo:'https://psrefstuff.lenovo.com/syspool/Sys/PDF/Lenovo_Monitors/Lenovo_Legion_R24e/Lenovo_Legion_R24e_OverViewPic.jpg'}
+  ],
+  'Msi/акция': [
+    {name:'MSI MAG 34 346CQ UWQHD 3440X1440 180 HZ 255$', photo:'https://asset.msi.com/resize/image/global/product/product_17387469211adc33ea67f0da970c9ff50e47c038c0.png62405b38c58fe0f07fcef2367d8a9ba1/600.png'}
+  ],
+  // добавь Benq и Dell полностью так же
+};
+
+// Проверка промокода из сообщения
+tg.initDataUnsafe?.user && setInterval(() => {
+  if (tg.initDataUnsafe?.start_param === promoCode) {
+    hasPromo = true;
+    tg.showAlert("Промокод активирован! -10% на Redmi, Lenovo, MSI");
+  }
+}, 1000);
+
+function setLang(l) {
+  lang = l;
+  document.getElementById('lang').style.display = 'none';
+  showCompanies();
+}
+
+function showCompanies() {
+  document.getElementById('companies').style.display = 'block';
+  document.getElementById('title-company').innerText = texts[lang].chooseCompany;
+  const list = document.getElementById('company-list');
+  list.innerHTML = '';
+  companies.forEach(c => {
+    const div = document.createElement('div');
+    div.className = 'btn';
+    div.innerText = c;
+    div.onclick = () => showModels(c);
+    list.appendChild(div);
+  });
+}
+
+function showModels(company) {
+  document.getElementById('companies').style.display = 'none';
+  document.getElementById('models').style.display = 'block';
+  document.getElementById('title-model').innerText = company;
+  const list = document.getElementById('model-list');
+  list.innerHTML = '';
+  MODELS[company].forEach(m => {
+    const div = document.createElement('div');
+    div.className = 'model';
+    let price = extractPrice(m.name);
+    let displayText = m.name;
+    if (hasPromo && promoBrands.includes(company)) {
+      const newPrice = (price * 0.9).toFixed(0);
+      displayText = m.name.replace(price+'$', `<s>${price}$</s> <span class="new">${newPrice}$</span>`);
+    }
+    div.innerHTML = `<div>${displayText}</div><img src="${m.photo}" style="width:100%;border-radius:8px;margin-top:10px">`;
+    div.onclick = () => showDetail(m, company);
+    list.appendChild(div);
+  });
+}
+
+function showDetail(model, company) {
+  document.getElementById('models').style.display = 'none';
+  document.getElementById('detail').style.display = 'block';
+  document.getElementById('photo').src = model.photo;
+  document.getElementById('model-name').innerText = model.name.split('$')[0];
+
+  let price = extractPrice(model.name);
+  if (hasPromo && promoBrands.includes(company)) {
+    const newPrice = (price * 0.9).toFixed(0);
+    document.getElementById('price-text').innerHTML = `<span class="old">${price}$</span> → <span class="new">${newPrice}$ (-10%)</span>`;
+  } else {
+    document.getElementById('price-text').innerText = price + '$';
+  }
+}
+
+function buy(type) {
+  if (type==='tg') tg.openTelegramLink('https://t.me/ALIBABO777');
+  if (type==='phone') tg.showAlert('+998883203333');
+}
+
+function extractPrice(text) {
+  const match = text.match(/(\d+)\s*\$/);
+  return match ? parseInt(match[1]) : 0;
+}
+
+function showLang() {
+  document.getElementById('companies').style.display = 'none';
+  document.getElementById('models').style.display = 'none';
+  document.getElementById('detail').style.display = 'none';
+  document.getElementById('lang').style.display = 'block';
+}
+</script>
+</body>
+</html>
